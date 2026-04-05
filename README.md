@@ -100,9 +100,8 @@ Here, we're enforcing
 ## Performance tips
 
 - Currently, for the best performance on CPU, I recommend JAX version `0.4.30`. This is due to a degradation in the XLA compiler performance in recent JAX versions, but the JAX/XLA team is currently working on addressing this: see https://github.com/jax-ml/jax/issues/26021
-- Almost always, if you are running on CPU, use `x64` with `jax.config.update("jax_enable_x64", True)` or by setting the environment variable `JAX_ENABLE_X64=True`.
-- Conversely, if you are running on GPU, you should probably stick with `x32` if you can get away with it for your application, since GPUs are much better suited for single precision. Performance drops by a fair bit (about 2-6x slower depending on the number of parallel instances) with `x64`.
-- If you are designing QP-based controllers, the QP should almost always be solved in `x64`, otherwise you may get garbage results.
+- I also recommend using double precision with `jax.config.update("jax_enable_x64", True)` or by setting the environment variable `JAX_ENABLE_X64=True`. This is especially the case if you are running on CPU, whereas on GPU, this is a more nuanced decision. Generally, running in double precision on GPU will lead to about a 2-6x slowdown, depending on your batch size, because GPUs are so well-suited for single-precision operations. This choice will be application-dependent -- you might need high precision, or maybe you can get away with being a little less precise.
+- If you are designing QP-based controllers, the QP should (almost always) be solved in double precision, otherwise you may get garbage results.
 - If you only need to solve for the dynamics of **one** robot instance, and you have a GPU on your computer, it will be significantly faster to use CPU. To force CPU usage, use `jax.config.update("jax_platforms", "cpu")` or set the environment variable `JAX_PLATFORMS=cpu`.
 - `frax` by default does **not** wrap every method with a `@jax.jit` decorator. When calling any JAX code, add a JIT decorator to the top-most function call to ensure the best performance. 
 - If you have any code that is **outside** of a jitted region, use `numpy` operations and arrays. **Inside** a jitted region, use `jax.numpy`. 
