@@ -1,0 +1,13 @@
+*.egg-info/*
+__pycache__
+.python-version
+site/
+.vscode/
+dist/
+build/
+.venv/
+untracked/
+scripts/benchmarks/results/
+MUJOCO_LOG.TXT
+scripts/benchmarks/cpp/bench_mujoco_cpp
+scripts/benchmarks/cpp/bench_pinocchio_cpp
