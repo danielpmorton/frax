@@ -1,5 +1,10 @@
 """Robot kinematics and dynamics"""
 
+# Assorted TODOs:
+# - Some logic in the jacobian computation (frame, link, joint) is duplicated,
+#   this can likely be simplified with some helper functions
+# - Also, see if we can use some of the spatial axes computation for the jacobians
+
 from typing import Tuple, Optional
 
 import jax
@@ -403,16 +408,15 @@ class Robot:
         # Linear jacobian has a prismatic contribution and revolute contribution
         # Prismatic contribution: All prismatic joints' z axes
         # Revolute contribution: Cross product of vector from revolute joints to EE
-        # TODO: Consider replacing these lines with a jnp.where instead of the double mask + sum?
-        Jv_prismatic = jnp.einsum(
-            "j,jd->dj", self.prismatic_mask[parent_chain], parent_axes
-        )
-        Jv_revolute = jnp.einsum(
-            "j,jd->dj", self.revolute_mask[parent_chain], lever_arms
-        )
-        Jv = Jv_prismatic + Jv_revolute
+        Jv = jnp.where(
+            self.revolute_mask[parent_chain, None], lever_arms, parent_axes
+        ).T
         # Angular jacobian only has a contribution from revolute joints (their axes)
-        Jw = jnp.einsum("j,jd->dj", self.revolute_mask[parent_chain], parent_axes)
+        Jw = jnp.where(
+            self.revolute_mask[parent_chain, None],
+            parent_axes,
+            jnp.zeros_like(parent_axes),
+        ).T
         J = jnp.vstack([Jv, Jw])
         # Reconstruct full jacobian from parent computations
         J_full = jnp.zeros((6, self.num_joints)).at[:, parent_chain].set(J)
@@ -464,14 +468,14 @@ class Robot:
         frame_pos = frame_to_root_tf[:3, 3]
         frame_pos_wrt_parents = frame_pos[jnp.newaxis, :] - parent_pos
         lever_arms = jnp.cross(parent_axes, frame_pos_wrt_parents)
-        Jv_prismatic = jnp.einsum(
-            "j,jd->dj", self.prismatic_mask[parent_chain], parent_axes
-        )
-        Jv_revolute = jnp.einsum(
-            "j,jd->dj", self.revolute_mask[parent_chain], lever_arms
-        )
-        Jv = Jv_prismatic + Jv_revolute
-        Jw = jnp.einsum("j,jd->dj", self.revolute_mask[parent_chain], parent_axes)
+        Jv = jnp.where(
+            self.revolute_mask[parent_chain, None], lever_arms, parent_axes
+        ).T
+        Jw = jnp.where(
+            self.revolute_mask[parent_chain, None],
+            parent_axes,
+            jnp.zeros_like(parent_axes),
+        ).T
         J = jnp.vstack([Jv, Jw])
 
         frame_vel = Jv @ qd[parent_chain]
@@ -480,18 +484,14 @@ class Robot:
         lever_arms_dot = jnp.cross(parent_axes_dot, frame_pos_wrt_parents) + jnp.cross(
             parent_axes, frame_vel_wrt_parents
         )
-
-        # TODO: Consider replacing these lines with a jnp.where instead of the double mask + sum?
-        Jv_dot_prismatic = jnp.einsum(
-            "j,jd->dj", self.prismatic_mask[parent_chain], parent_axes_dot
-        )
-        Jv_dot_revolute = jnp.einsum(
-            "j,jd->dj", self.revolute_mask[parent_chain], lever_arms_dot
-        )
-        Jv_dot = Jv_dot_prismatic + Jv_dot_revolute
-        Jw_dot = jnp.einsum(
-            "j,jd->dj", self.revolute_mask[parent_chain], parent_axes_dot
-        )
+        Jv_dot = jnp.where(
+            self.revolute_mask[parent_chain, None], lever_arms_dot, parent_axes_dot
+        ).T
+        Jw_dot = jnp.where(
+            self.revolute_mask[parent_chain, None],
+            parent_axes_dot,
+            jnp.zeros_like(parent_axes_dot),
+        ).T
         J_dot = jnp.vstack([Jv_dot, Jw_dot])
 
         # Reconstruct full Jacobian and derivative from parent computations
@@ -638,22 +638,16 @@ class Robot:
 
         # The ancestor mask zeros out the contributions from any joint that is not an ancestor
         # of the joint of interest
-        Jv_joints = self.ancestor_mask[:, jnp.newaxis, :] * (
-            # This einsum creates a (3, num_joints) array with only the prismatic joint axes being nonzero
-            # Adding the first None axis broadcasts this for all joints
-            jnp.einsum("j,jd->dj", self.prismatic_mask, joint_axes_world_frame)[None, :]
-            # This einsum creates a (num_joints, 3, num_joints) array with the cross product
-            # terms between all joint origins and axes. Any prismatic terms are masked out
-            + jnp.einsum("j,ljd->ldj", self.revolute_mask, lever_arms)
-        )
+        Jv_joints = self.ancestor_mask[:, None, :] * jnp.where(
+            self.revolute_mask[:, None], lever_arms, joint_axes_world_frame[None, :]
+        ).transpose(0, 2, 1)
 
         # Angular jacobian only has a contribution from revolute joints (their axes)
-        Jw_joints = jnp.einsum(
-            "lj,j,jd->ldj",
-            self.ancestor_mask,
-            self.revolute_mask,
-            joint_axes_world_frame,
-        )
+        Jw_joints = self.ancestor_mask[:, None, :] * jnp.where(
+            self.revolute_mask[:, None],
+            joint_axes_world_frame[None, :],
+            jnp.zeros_like(joint_axes_world_frame[None, :]),
+        ).transpose(0, 2, 1)
         return Jv_joints, Jw_joints
 
     def _link_jacobians_from_joint_jacobians(
@@ -720,14 +714,9 @@ class Robot:
 
         # The ancestor mask zeros out the contributions from any joint that is not an ancestor
         # of the link of interest
-        return self.ancestor_mask[:, jnp.newaxis, :] * (
-            # This einsum creates a (3, num_joints) array with only the prismatic joint axes being nonzero
-            # Adding the first None axis broadcasts this for all links
-            jnp.einsum("j,jd->dj", self.prismatic_mask, joint_axes_world_frame)[None, :]
-            # This einsum creates a (num_links, 3, num_joints) array with the cross product
-            # terms between all link COMs and joints. Any prismatic terms are masked out
-            + jnp.einsum("j,ljd->ldj", self.revolute_mask, lever_arms)
-        )
+        return self.ancestor_mask[:, None, :] * jnp.where(
+            self.revolute_mask[:, None], lever_arms, joint_axes_world_frame[None, :]
+        ).transpose(0, 2, 1)
 
     def _link_angular_jacobians(self, joint_transforms: Array) -> Array:
         """Helper function: Compute an array containing the angular jacobians Jw for every link
@@ -1033,7 +1022,7 @@ class Robot:
         link_local_inertias = jnp.asarray(self.link_local_inertias)
 
         spatial_axes = get_spatial_joint_axes(
-            joint_transforms, joint_axes_local, self.revolute_mask, self.prismatic_mask
+            joint_transforms, joint_axes_local, self.revolute_mask
         )
         link_transforms = self._link_to_world_transforms(joint_transforms)
         spatial_inertias = get_spatial_inertias(

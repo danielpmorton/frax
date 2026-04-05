@@ -10,12 +10,10 @@ import jax.numpy as jnp
 from jax import Array
 
 
-# TODO remove the prismatic mask input as it's just ~revolute
 def get_spatial_joint_axes(
     joint_transforms: Array,
     joint_axes_local: Array,
     revolute_mask: Array,
-    prismatic_mask: Array,
 ) -> Array:
     """Computes the spatial joint axes, expressed in the root frame.
 
@@ -23,7 +21,6 @@ def get_spatial_joint_axes(
         joint_transforms (Array): Transformation matrices for every joint, shape (num_joints, 4, 4)
         joint_axes_local (Array): Local joint axes, shape (num_joints, 3)
         revolute_mask (Array): Mask for revolute joints, shape (num_joints,)
-        prismatic_mask (Array): Mask for prismatic joints, shape (num_joints,)
 
     Returns:
         Array: Spatial joint axes, shape (num_joints, 6)
@@ -40,7 +37,7 @@ def get_spatial_joint_axes(
     # For prismatic joints, spatial axis is [axis; 0]
     s_pri = jnp.concatenate([joint_axes_rot, jnp.zeros_like(joint_axes_rot)], axis=1)
 
-    return revolute_mask[:, None] * s_rev + prismatic_mask[:, None] * s_pri
+    return jnp.where(revolute_mask[:, None], s_rev, s_pri)
 
 
 # TODO clean up this function more
