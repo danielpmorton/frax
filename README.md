@@ -29,10 +29,12 @@ cd frax
 pip install -e .
 ```
 
-**[Optional]** If you're installing from source, I highly recommend using a `uv`-managed virtual environment. In this case, `pip` commands can be replaced with `uv pip`
+> [!TIP]
+> If you are running on CPU, I highly recommend using JAX version `0.4.30` for the best possible performance. See [below](#performance-tips) for additional performance tips!
 
-If you are running on **CPU**, I highly recommend using JAX version `0.4.30` for the best possible performance. For more fine-grained control over the JAX install for GPU/TPU, you can also use the `[cuda12]`, `[cuda13]`, or `[tpu]` tags.
-See below for additional performance tips!
+If you're installing from source, I highly recommend using a `uv`-managed virtual environment. In this case, `pip` commands can be replaced with `uv pip`
+
+For more fine-grained control over the JAX install for GPU/TPU, you can also use the `[cuda12]`, `[cuda13]`, or `[tpu]` tags.
 
 To run the examples, please install from source with the `[examples]` tag, i.e. `pip install -e ".[examples]"`
 
@@ -59,7 +61,7 @@ def jit_mass_matrix(q_):
 M = jit_mass_matrix(q)
 print(M)
 ```
-See the "Performance Tips" section below for more advice on making your code *fast*.
+See the [Performance Tips](#performance-tips) section below for more advice on making your code *fast*.
 
 Many more kinematics and dynamics terms are available (joint/link/frame transforms and Jacobians, gravity vector, centrifugal/coriolis forces, and many other values relevant to robot control). We also provide `Manipulator` and `Humanoid` classes for useful helper functions based on your robot's form-factor, and `frax` comes pre-loaded with the Franka Panda and Unitree G1. 
 
