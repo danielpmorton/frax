@@ -1,7 +1,6 @@
 <div align="center">
-<img src="https://github.com/user-attachments/assets/e57cdccf-3e3c-4bda-a6ea-90f4ee4f509b" alt="logo"></img>
+<img src="https://github.com/user-attachments/assets/a3476e2f-38a6-4f4d-95df-a399f7881eae" alt="logo"></img>
 </div>
-
 
 # `frax`: Fast Robot Kinematics and Dynamics in JAX
 
@@ -75,13 +74,13 @@ Examples of using `frax` for typical robot controllers:
 
 When these scripts are launched in `trajectory` mode, you'll see the following sinusoidal tracking demo:
 
-https://github.com/user-attachments/assets/9a8d74b1-21bb-4a1c-bee3-2b93dcb7705c
+https://github.com/user-attachments/assets/7b471496-2124-4063-953a-d7f25776ed5b
 
 This can also be launched in `manual` mode, for interactive mouse control of the target.
 
 However, these controllers are fairly simple, and Pinocchio or MuJoCo could have been used to give the same Jacobians and inertial values. The real benefit of `frax` comes from the automatic differentiation through the kinematics and dynamics for flexible controller design with minimal manual Jacobian derivations. In the below demo (`examples/panda_oscbf_demo.py`), I've reimplemented [OSCBF](https://github.com/StanfordASL/oscbf), which uses JAX's autodiff under the hood to form the CBF constraints.
 
-https://github.com/user-attachments/assets/347b5fda-f370-4b24-8a91-bc9e2d702cc4
+https://github.com/user-attachments/assets/5ea84ec0-6b67-40fd-a974-5850499df15d
 
 Here, we're enforcing
 - Singularity avoidance
