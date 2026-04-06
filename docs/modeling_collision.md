@@ -26,7 +26,7 @@ To do this with [bubblify](https://github.com/bheijden/bubblify) (my preferred m
 - Add spheres interactively to each link. Tips for best performance with `frax`: minimize the maximum amount of spheres on any one link, and try to strike a good balance between number of spheres, and how tighly you represent the geometry.
 - Your model will look something like this when you're done:
 
-<img src="https://github.com/user-attachments/assets/3b69943d-0f3d-4e11-b091-5781596efcbd" alt="Spherized Panda" height="300">
+<img src="https://github.com/user-attachments/assets/f097b577-1197-4c7f-9392-a4b193df72ac" alt="Spherized Panda" height="300">
 
 ### 3. Create a self-collision model
 Now, given the spheres from the collision model, we'll define self-collision pairs to pay attention to. This could be an exhaustive list of every pair of spheres on the model, but this would be needlessly complex for most practical situations. 
@@ -36,7 +36,7 @@ An example of how to define these pairs is located in `frax/robots/franka_panda.
 ### 4. Verify
 Now, check that the collision model looks correct once it's loaded into `frax`. There's an example script at `scripts/visualize_collision_model.py` which will bring up the following, for the Panda:
 
-<img src="https://github.com/user-attachments/assets/0c2dd80a-7e54-4073-8635-9e9f5295b6f1" alt="Collision model" height="300">
+<img src="https://github.com/user-attachments/assets/3d31c668-30bb-491d-ad3e-cd2bb63ff34c" alt="Collision model" height="300">
 
 The spheres associated with the self-collision model are indicated in red (with lines to denote the collision pairs), and standard collision spheres in yellow. 
 
