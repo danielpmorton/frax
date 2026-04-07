@@ -4,6 +4,8 @@
 
 # `frax`: Fast Robot Kinematics and Dynamics in JAX
 
+[![Paper](http://img.shields.io/badge/arXiv-2604.04310-B31B1B.svg)](https://arxiv.org/abs/2604.04310)
+
 `frax` is a fast kinematics and dynamics library in pure Python, using [JAX](https://github.com/jax-ml/jax) for JIT-compilation and automatic differentiation. 
 
 With `frax`, you can design high-performance inverse-kinematics and inverse-dynamics controllers at the speed of [Pinocchio](https://github.com/stack-of-tasks/pinocchio), ease of use of Python, and differentiation and parallelization-compatibilty of [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx).
@@ -140,5 +142,13 @@ The following features are unplanned:
 
 ## Citation
 
-TODO
+```
+@article{morton2026frax,
+  author={Morton, Daniel and Pavone, Marco},
+  title={frax: Fast Robot Kinematics and Dynamics in JAX},
+  journal={arXiv preprint arXiv:2604.04310},
+  year={2026},
+  note={Submitted to the ICRA 2026 Workshop on Frontiers of Optimization for Robotics},
+}
+```
 
