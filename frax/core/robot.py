@@ -97,8 +97,8 @@ class Robot:
         self.includes_floating_dof = add_floating_base  # TODO rename this
         self.collision_positions = collision_positions # RAGGED
         self.collision_radii = collision_radii # RAGGED
-        self.root_collision_positions = root_collision_positions  # RAGGED
-        self.root_collision_radii = root_collision_radii # RAGGED
+        self.root_collision_positions = np.asarray(root_collision_positions, dtype=float)
+        self.root_collision_radii = np.asarray(root_collision_radii, dtype=float)
         self.root_sc_pairs = np.asarray(root_sc_pairs, dtype=int)
         self.root_sc_tols = np.asarray(root_sc_tols, dtype=float)
         self.body_sc_pairs = np.asarray(body_sc_pairs, dtype=int)
