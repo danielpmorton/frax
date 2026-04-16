@@ -9,7 +9,6 @@ import jax.numpy as jnp
 import numpy as np
 
 from frax.core.robot import Robot
-from frax.utils.general_utils import tuplify
 
 
 @jax.tree_util.register_static
@@ -50,11 +49,11 @@ class Manipulator(Robot):
         self.ee_parent_chain = np.arange(self.num_joints)
 
         if ee_offset is None:
-            ee_offset = tuplify(np.eye(4))
+            ee_offset = np.eye(4)
         else:
-            ee_offset = np.asarray(ee_offset)
+            ee_offset = np.asarray(ee_offset, dtype=float)
             assert ee_offset.shape == (4, 4)
-            ee_offset = tuplify(ee_offset)
+            ee_offset = ee_offset
 
         self.ee_offset = ee_offset
 
@@ -75,8 +74,7 @@ class Manipulator(Robot):
     def _ee_transform(self, joint_transforms: Array) -> Array:
         """Helper function: Compute EE transform given joint transforms"""
         parent_index = self.ee_parent_chain[-1]
-        offset = jnp.asarray(self.ee_offset)
-        return self._frame_transform(joint_transforms, offset, parent_index)
+        return self._frame_transform(joint_transforms, self.ee_offset, parent_index)
 
     def ee_jacobian(self, q: Array) -> Array:
         """Jacobian [Jv; Jw] of the end effector given the joint configuration
@@ -93,9 +91,9 @@ class Manipulator(Robot):
 
     def _ee_jacobian(self, joint_transforms: Array):
         """Helper function: Compute EE jacobian given joint transforms"""
-        parent_chain = jnp.asarray(self.ee_parent_chain)
-        offset = jnp.asarray(self.ee_offset)
-        return self._frame_jacobian(joint_transforms, offset, parent_chain)
+        return self._frame_jacobian(
+            joint_transforms, self.ee_offset, self.ee_parent_chain
+        )
 
     def ee_jacobian_and_derivative(self, q: Array, qd: Array) -> Tuple[Array, Array]:
         """End-effector Jacobian and its time derivative (w.r.t world)
@@ -116,10 +114,8 @@ class Manipulator(Robot):
         self, qd: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
         """Helper function: Compute EE Jacobian and time derivative given joint transforms"""
-        parent_chain = jnp.asarray(self.ee_parent_chain)
-        offset = jnp.asarray(self.ee_offset)
         return self._frame_jacobian_and_derivative(
-            qd, joint_transforms, offset, parent_chain
+            qd, joint_transforms, self.ee_offset, self.ee_parent_chain
         )
 
     def ee_manipulability_index(self, q: Array) -> float:

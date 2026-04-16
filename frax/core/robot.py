@@ -14,7 +14,6 @@ import jax.scipy as jsp
 import numpy as np
 
 from frax.utils.urdf_parser import parse_urdf
-from frax.utils.general_utils import tuplify
 from frax.utils.linalg_utils import (
     schur_spd_inverse,
     cholesky_spd_inverse,
@@ -59,7 +58,6 @@ class Robot:
             joint_ordering=joint_ordering,
             add_floating_base=add_floating_base,
         )
-        data = {k: tuplify(v) for k, v in data.items()}
 
         assert isinstance(collision_data, dict) or collision_data is None
         if isinstance(collision_data, dict):
@@ -80,31 +78,32 @@ class Robot:
             root_sc_tols = ()
             body_sc_pairs = ()
             body_sc_tols = ()
-
+        # fmt: off
         self.num_joints = data["num_joints"]
-        self.joint_types = data["joint_types"]
+        self.joint_types = np.asarray(data["joint_types"], dtype=int)
         self.joint_names = data["joint_names"]
-        self.joint_lower_limits = data["joint_lower_limits"]
-        self.joint_upper_limits = data["joint_upper_limits"]
-        self.joint_max_forces = data["joint_max_forces"]
-        self.joint_max_velocities = data["joint_max_velocities"]
-        self.joint_axes = data["joint_axes"]
-        self.joint_parent_frame_positions = data["joint_parent_frame_positions"]
-        self.joint_parent_frame_rotations = data["joint_parent_frame_rotations"]
-        self.link_masses = data["link_masses"]
-        self.link_local_inertias = data["link_local_inertias"]
-        self.link_local_inertia_positions = data["link_local_inertia_positions"]
-        self.link_local_inertia_rotations = data["link_local_inertia_rotations"]
-        self.parent_idxs = data["parent_idxs"]
+        self.joint_lower_limits = np.asarray(data["joint_lower_limits"], dtype=float)
+        self.joint_upper_limits = np.asarray(data["joint_upper_limits"], dtype=float)
+        self.joint_max_forces = np.asarray(data["joint_max_forces"], dtype=float)
+        self.joint_max_velocities = np.asarray(data["joint_max_velocities"], dtype=float)
+        self.joint_axes = np.asarray(data["joint_axes"], dtype=float)
+        self.joint_parent_frame_positions = np.asarray(data["joint_parent_frame_positions"], dtype=float)
+        self.joint_parent_frame_rotations = np.asarray(data["joint_parent_frame_rotations"], dtype=float)
+        self.link_masses = np.asarray(data["link_masses"], dtype=float)
+        self.link_local_inertias = np.asarray(data["link_local_inertias"], dtype=float)
+        self.link_local_inertia_positions = np.asarray(data["link_local_inertia_positions"], dtype=float)
+        self.link_local_inertia_rotations = np.asarray(data["link_local_inertia_rotations"], dtype=float)
+        self.parent_idxs = np.asarray(data["parent_idxs"], dtype=int)
         self.includes_floating_dof = add_floating_base  # TODO rename this
-        self.collision_positions = collision_positions
-        self.collision_radii = collision_radii
-        self.root_collision_positions = root_collision_positions
-        self.root_collision_radii = root_collision_radii
-        self.root_sc_pairs = root_sc_pairs
-        self.root_sc_tols = root_sc_tols
-        self.body_sc_pairs = body_sc_pairs
-        self.body_sc_tols = body_sc_tols
+        self.collision_positions = collision_positions # RAGGED
+        self.collision_radii = collision_radii # RAGGED
+        self.root_collision_positions = root_collision_positions  # RAGGED
+        self.root_collision_radii = root_collision_radii # RAGGED
+        self.root_sc_pairs = np.asarray(root_sc_pairs, dtype=int)
+        self.root_sc_tols = np.asarray(root_sc_tols, dtype=float)
+        self.body_sc_pairs = np.asarray(body_sc_pairs, dtype=int)
+        self.body_sc_tols = np.asarray(body_sc_tols, dtype=float)
+        # fmt: on
 
         self.num_actuated_joints = (
             self.num_joints - 6 if self.includes_floating_dof else self.num_joints
@@ -112,7 +111,7 @@ class Robot:
         self.has_collision_data = len(collision_positions) > 0
         self.has_root_collision_data = len(root_collision_positions) > 0
         self.has_sc_data = len(body_sc_pairs) > 0
-        self.joint_to_prev_joint_tfs = tuplify(
+        self.joint_to_prev_joint_tfs = np.asarray(
             [
                 create_transform_numpy(rot, trans)
                 for rot, trans in zip(
@@ -120,7 +119,7 @@ class Robot:
                 )
             ]
         )
-        self.link_com_to_prev_joint_tfs = tuplify(
+        self.link_com_to_prev_joint_tfs = np.asarray(
             [
                 create_transform_numpy(rot, trans)
                 for rot, trans in zip(
@@ -133,7 +132,7 @@ class Robot:
             self.padded_collision_positions,
             self.collision_slice_indices,
         ) = self._process_collision_data(collision_positions, collision_radii)
-        self.flat_collision_radii = tuple(
+        self.flat_collision_radii = np.asarray(
             jax.tree_util.tree_flatten(self.collision_radii)[0]
         )
 
@@ -141,8 +140,8 @@ class Robot:
         self.inverse_total_mass = 1.0 / self.total_mass
 
         # Set up joint type masks
-        self.prismatic_mask = jnp.asarray(self.joint_types)
-        self.revolute_mask = 1 - self.prismatic_mask
+        self.prismatic_mask = np.asarray(self.joint_types, dtype=bool)
+        self.revolute_mask = ~self.prismatic_mask
 
         self.ancestor_mask = self._compute_ancestor_mask()
         self.is_pure_kinematic_chain = np.array_equal(
@@ -153,7 +152,7 @@ class Robot:
 
     def _process_collision_data(
         self, positions: tuple, radii: tuple
-    ) -> Tuple[tuple, tuple]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Helper function: Sets up a padded representation of the collision sphere positions
         for vmapping with uniform shape
 
@@ -166,7 +165,7 @@ class Robot:
                 where each entry contains a set of radii for that link
 
         Returns:
-            Tuple[tuple, tuple]:
+            Tuple[np.ndarray, np.ndarray]:
                 padded_positions: Positions, shape (num_joints, max_spheres_per_link, 3)
                 slice_indices: Indices of the *flattened* padded positions to select,
                     corresponding to the non-padded data
@@ -181,24 +180,23 @@ class Robot:
         for link_idx in range(self.num_joints):
             for sphere_idx in range(sphere_counts[link_idx]):
                 padded_positions[link_idx, sphere_idx] = positions[link_idx][sphere_idx]
-        padded_positions = tuplify(padded_positions)
         # mask: (num_joints, max_spheres) - True for non-padded spheres
         sphere_mask = (
             np.arange(max_spheres_per_link) < np.asarray(sphere_counts)[:, None]
         )
-        slice_indices = tuplify(np.flatnonzero(sphere_mask.flatten()))
+        slice_indices = np.flatnonzero(sphere_mask.flatten())
         return padded_positions, slice_indices
 
     # TODO figure out if the dtype of the mask makes much difference to performance...
     # Right now it's float but switching to bool doesn't seem to change much
-    def _compute_ancestor_mask(self) -> Array:
+    def _compute_ancestor_mask(self) -> np.ndarray:
         """Computes the connectivity matrix for the tree structure.
 
         Returns:
-            Array: Shape (num_joints, num_joints). Mask[i, j] = 1 if j is an ancestor of i
+            np.ndarray: Shape (num_joints, num_joints). Mask[i, j] = 1 if j is an ancestor of i
         """
         N = self.num_joints
-        mask = np.zeros((N, N))
+        mask = np.zeros((N, N), dtype=bool)
 
         # Based on how we've parsed the URDF, the base (pelvis) link is assigned idx = 0
         # But it's slightly easier to compute this mask if it is assigned -1
@@ -206,10 +204,10 @@ class Robot:
 
         # Assumes topological sort (parents appear before children)
         for i in range(N):
-            mask[i, i] = 1.0  # A joint affects its own link
+            mask[i, i] = True  # A joint affects its own link
             parent = self.parent_idxs[i]
             while parent != -1:
-                mask[i, parent] = 1.0
+                mask[i, parent] = True
                 parent = self.parent_idxs[parent]
 
         return mask
@@ -234,14 +232,10 @@ class Robot:
 
     def _local_joint_transforms(self, q: Array) -> Array:
         """Helper function: Computes each joint's transform in parent frame"""
-        # Convert static data to jax arrays
-        joint_axes = jnp.asarray(self.joint_axes)
-        joint_types = jnp.asarray(self.joint_types)
-        joint_to_prev_joint_tfs = jnp.asarray(self.joint_to_prev_joint_tfs)
         # Calculate each joint's transformation matrix
-        transforms = jax.vmap(joint_transform)(q, joint_axes, joint_types)
+        transforms = jax.vmap(joint_transform)(q, self.joint_axes, self.joint_types)
         # Multiply the transform by its corresponding link offset
-        return joint_to_prev_joint_tfs @ transforms
+        return self.joint_to_prev_joint_tfs @ transforms
 
     def _unrolled_fk(self, q: Array) -> Array:
         """Compute the forward kinematics via unrolling the loop over the joints"""
@@ -277,10 +271,8 @@ class Robot:
 
     def _link_to_world_transforms(self, joint_transforms: Array) -> Array:
         """Helper function: Computes link inertial transformation matrices, given joint transforms"""
-        # Convert static data to jax arrays
-        link_com_to_prev_joint_tfs = jnp.asarray(self.link_com_to_prev_joint_tfs)
         # Multiply the transform by its corresponding link offset
-        transforms = joint_transforms @ link_com_to_prev_joint_tfs
+        transforms = joint_transforms @ self.link_com_to_prev_joint_tfs
         return transforms
 
     # Note: if only the COM positions (not rotations) are needed, using this function
@@ -299,12 +291,10 @@ class Robot:
 
     def _link_com_positions(self, joint_transforms: Array) -> Array:
         """Helper function: Compute the positions of all link COMs in world frame, given the joint transforms"""
-        # Convert static data to jax arrays
-        link_local_inertia_positions = jnp.asarray(self.link_local_inertia_positions)
         # Determine the positions of the link COMs in world frame. Shape (num_joints, 3)
         # Position in world frame = joint-to-world transform x position in joint frame
         homogeneous_pos = jnp.column_stack(
-            [link_local_inertia_positions, jnp.ones(self.num_joints)]
+            [self.link_local_inertia_positions, jnp.ones(self.num_joints)]
         )
         return jnp.einsum("qij,qj->qi", joint_transforms, homogeneous_pos)[:, :3]
 
@@ -322,11 +312,10 @@ class Robot:
 
     def _center_of_mass(self, joint_transforms: Array) -> Array:
         """Helper function: Compute center of mass given joint transforms"""
-        link_masses = jnp.asarray(self.link_masses)
         link_com_positions = self._link_com_positions(joint_transforms)
         # Inertially averaged position
         return (
-            jnp.sum(link_masses.reshape(-1, 1) * link_com_positions, axis=0)
+            jnp.sum(self.link_masses.reshape(-1, 1) * link_com_positions, axis=0)
             * self.inverse_total_mass
         )
 
@@ -349,9 +338,11 @@ class Robot:
 
     def _com_jacobian_from_link_jacobians(self, link_Jvs: Array) -> Array:
         """Helper function: Compute center of mass jacobian given link linear jacobians"""
-        link_masses = jnp.asarray(self.link_masses)
         # Inertially-weighted average of the link COM jacobians
-        return jnp.einsum("l,ldj->dj", link_masses, link_Jvs) * self.inverse_total_mass
+        return (
+            jnp.einsum("l,ldj->dj", self.link_masses, link_Jvs)
+            * self.inverse_total_mass
+        )
 
     def _frame_transform(
         self, joint_transforms: Array, frame_transform: Array, parent_index: int
@@ -395,7 +386,7 @@ class Robot:
         # Axes of all parent joints in root frame. Shape (num_joints, 3)
         parent_axes = (
             joint_transforms[parent_chain, :3, :3]
-            @ jnp.asarray(self.joint_axes)[parent_chain, :, jnp.newaxis]
+            @ self.joint_axes[parent_chain, :, jnp.newaxis]
         ).squeeze(axis=2)
 
         # Position of frame, with respect to joint j. Shape (num_joints, 3).
@@ -457,7 +448,7 @@ class Robot:
 
         parent_axes = (
             joint_transforms[parent_chain, :3, :3]
-            @ jnp.asarray(self.joint_axes)[parent_chain, :, jnp.newaxis]
+            @ self.joint_axes[parent_chain, :, jnp.newaxis]
         ).squeeze(axis=2)
         parent_axes_dot = jnp.cross(parent_ang_vels, parent_axes)
         parent_pos = joint_transforms[parent_chain, :3, 3]
@@ -525,7 +516,7 @@ class Robot:
     def _link_collision_data(self, joint_transforms: Array) -> Tuple[Array, Array]:
         """Helper function: Compute the collision data for all links given the joint transforms"""
         positions = self._link_collision_positions(joint_transforms)
-        radii = jnp.asarray(self.flat_collision_radii)
+        radii = self.flat_collision_radii
         return positions, radii
 
     def link_collision_positions(self, q: Array) -> Array:
@@ -544,18 +535,15 @@ class Robot:
 
     def _link_collision_positions(self, joint_transforms: Array) -> Array:
         """Helper function: Compute all collision positions given joint transforms"""
-        # Convert static data to jax arrays
-        padded_collision_positions = jnp.asarray(self.padded_collision_positions)
-        collision_slice_indices = jnp.asarray(self.collision_slice_indices)
         # Compute collision body positions in world frame
         # Shape (num_joints, max_spheres, 3)
         transformed_pts_padded = jax.vmap(transform_points)(
-            joint_transforms, padded_collision_positions
+            joint_transforms, self.padded_collision_positions
         )
         # Flatten and select only the non-padded collision data
         # Flat points shape (num_joints * max_spheres, 3)
         all_pts_flat = transformed_pts_padded.reshape(-1, 3)
-        pts_unpadded = all_pts_flat[collision_slice_indices]
+        pts_unpadded = all_pts_flat[self.collision_slice_indices]
         return pts_unpadded
 
     def self_collision_distances(self, q: Array) -> Array:
@@ -574,7 +562,7 @@ class Robot:
         # Compute distances between spheres on different links of the body
         # Note: just use the spheres of the full-body collision model associated
         # with the self-collision model (typically a subset)
-        pairs = jnp.asarray(self.body_sc_pairs)
+        pairs = self.body_sc_pairs
         idxs_a = pairs[:, 0]
         idxs_b = pairs[:, 1]
         pos_a = positions[idxs_a]
@@ -582,7 +570,7 @@ class Robot:
         rad_a = radii[idxs_a]
         rad_b = radii[idxs_b]
         center_deltas = pos_b - pos_a
-        tols = jnp.asarray(self.body_sc_tols)
+        tols = self.body_sc_tols
         body_to_body_dists = (
             jnp.linalg.norm(center_deltas, axis=-1) - rad_a - rad_b - tols
         )
@@ -590,15 +578,15 @@ class Robot:
             return body_to_body_dists
         # Compute distances to the fixed-to-world root
         # (note that these spheres on the root do not require FK)
-        root_sc_pairs = jnp.asarray(self.root_sc_pairs)
+        root_sc_pairs = self.root_sc_pairs
         root_idxs = root_sc_pairs[:, 0]
         body_idxs = root_sc_pairs[:, 1]
-        root_pos = jnp.asarray(self.root_collision_positions)[root_idxs]
+        root_pos = self.root_collision_positions[root_idxs]
         body_pos = positions[body_idxs]
-        root_rad = jnp.asarray(self.root_collision_radii)[root_idxs]
+        root_rad = self.root_collision_radii[root_idxs]
         body_rad = radii[body_idxs]
         root_center_deltas = body_pos - root_pos
-        root_tols = jnp.asarray(self.root_sc_tols)
+        root_tols = self.root_sc_tols
         root_to_body_dists = (
             jnp.linalg.norm(root_center_deltas, axis=-1)
             - root_rad
@@ -624,7 +612,7 @@ class Robot:
 
         # Axes of all joints in world frame. Shape (num_joints, 3)
         joint_axes_world_frame = jnp.einsum(
-            "qij,qj->qi", joint_transforms[:, :3, :3], jnp.asarray(self.joint_axes)
+            "qij,qj->qi", joint_transforms[:, :3, :3], self.joint_axes
         )
 
         # Positions of joint origin i, with respect to joint j. Shape (num_joints, num_joints, 3).
@@ -700,7 +688,7 @@ class Robot:
 
         # Axes of all joints in world frame. Shape (num_joints, 3)
         joint_axes_world_frame = jnp.einsum(
-            "qij,qj->qi", joint_transforms[:, :3, :3], jnp.asarray(self.joint_axes)
+            "qij,qj->qi", joint_transforms[:, :3, :3], self.joint_axes
         )
 
         # Positions of link COM i, with respect to joint j. Shape (num_joints, num_joints, 3).
@@ -729,7 +717,7 @@ class Robot:
         """
         # Axes of all joints in world frame. Shape (num_joints, 3)
         joint_axes_world_frame = jnp.einsum(
-            "qij,qj->qi", joint_transforms[:, :3, :3], jnp.asarray(self.joint_axes)
+            "qij,qj->qi", joint_transforms[:, :3, :3], self.joint_axes
         )
         # Apply the revolute mask to the world-frame joint axes (only revolute joints contribute
         # to the angular jacobian) and then mask out the non-ancestor joints
@@ -825,7 +813,7 @@ class Robot:
         assume_gravity_acts_only_in_z = True
         if assume_gravity_acts_only_in_z:
             g = -9.81
-            mg = g * jnp.asarray(self.link_masses)
+            mg = g * self.link_masses
             return -mg @ link_Jvs[:, 2, :]
         else:
             g = jnp.array([0.0, 0.0, -9.81])
@@ -1016,17 +1004,12 @@ class Robot:
                 spatial_axes (Array): shape (num_joints, 6)
                 spatial_inertias (Array): shape (num_joints, 6, 6)
         """
-        # Convert static data to jax arrays
-        joint_axes_local = jnp.asarray(self.joint_axes)
-        link_masses = jnp.asarray(self.link_masses)
-        link_local_inertias = jnp.asarray(self.link_local_inertias)
-
         spatial_axes = get_spatial_joint_axes(
-            joint_transforms, joint_axes_local, self.revolute_mask
+            joint_transforms, self.joint_axes, self.revolute_mask
         )
         link_transforms = self._link_to_world_transforms(joint_transforms)
         spatial_inertias = get_spatial_inertias(
-            link_masses, link_local_inertias, link_transforms
+            self.link_masses, self.link_local_inertias, link_transforms
         )
         return spatial_axes, spatial_inertias
 

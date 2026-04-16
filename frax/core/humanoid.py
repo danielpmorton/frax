@@ -9,7 +9,6 @@ from jax.typing import ArrayLike
 import numpy as np
 
 from frax.core.robot import Robot
-from frax.utils.general_utils import tuplify
 
 
 @jax.tree_util.register_static
@@ -72,32 +71,32 @@ class Humanoid(Robot):
         )
 
         if left_hand_ee_offset is None:
-            self.left_hand_ee_offset = tuplify(np.eye(4))
+            self.left_hand_ee_offset = np.eye(4)
         else:
-            left_hand_ee_offset = np.asarray(left_hand_ee_offset)
+            left_hand_ee_offset = np.asarray(left_hand_ee_offset, dtype=float)
             assert left_hand_ee_offset.shape == (4, 4)
-            self.left_hand_ee_offset = tuplify(left_hand_ee_offset)
+            self.left_hand_ee_offset = left_hand_ee_offset
 
         if right_hand_ee_offset is None:
-            self.right_hand_ee_offset = tuplify(np.eye(4))
+            self.right_hand_ee_offset = np.eye(4)
         else:
-            right_hand_ee_offset = np.asarray(right_hand_ee_offset)
+            right_hand_ee_offset = np.asarray(right_hand_ee_offset, dtype=float)
             assert right_hand_ee_offset.shape == (4, 4)
-            self.right_hand_ee_offset = tuplify(right_hand_ee_offset)
+            self.right_hand_ee_offset = right_hand_ee_offset
 
         if left_foot_ee_offset is None:
-            self.left_foot_ee_offset = tuplify(np.eye(4))
+            self.left_foot_ee_offset = np.eye(4)
         else:
-            left_foot_ee_offset = np.asarray(left_foot_ee_offset)
+            left_foot_ee_offset = np.asarray(left_foot_ee_offset, dtype=float)
             assert left_foot_ee_offset.shape == (4, 4)
-            self.left_foot_ee_offset = tuplify(left_foot_ee_offset)
+            self.left_foot_ee_offset = left_foot_ee_offset
 
         if right_foot_ee_offset is None:
-            self.right_foot_ee_offset = tuplify(np.eye(4))
+            self.right_foot_ee_offset = np.eye(4)
         else:
-            right_foot_ee_offset = np.asarray(right_foot_ee_offset)
+            right_foot_ee_offset = np.asarray(right_foot_ee_offset, dtype=float)
             assert right_foot_ee_offset.shape == (4, 4)
-            self.right_foot_ee_offset = tuplify(right_foot_ee_offset)
+            self.right_foot_ee_offset = right_foot_ee_offset
 
         # only applicable if has freeflying dofs... TODO figure out best way to handle
         self.selection_matrix = np.vstack(
@@ -115,9 +114,9 @@ class Humanoid(Robot):
         return self._left_hand_transform(transforms)
 
     def _left_hand_transform(self, joint_transforms: Array) -> Array:
-        parent_index = self.left_hand_parent_chain[-1]
-        offset = jnp.asarray(self.left_hand_ee_offset)
-        return self._frame_transform(joint_transforms, offset, parent_index)
+        return self._frame_transform(
+            joint_transforms, self.left_hand_ee_offset, self.left_hand_parent_chain[-1]
+        )
 
     def right_hand_transform(self, q: Array) -> Array:
         """Transformation matrix of the right hand (w.r.t world), shape (4, 4)"""
@@ -125,9 +124,11 @@ class Humanoid(Robot):
         return self._right_hand_transform(transforms)
 
     def _right_hand_transform(self, joint_transforms: Array) -> Array:
-        parent_index = self.right_hand_parent_chain[-1]
-        offset = jnp.asarray(self.right_hand_ee_offset)
-        return self._frame_transform(joint_transforms, offset, parent_index)
+        return self._frame_transform(
+            joint_transforms,
+            self.right_hand_ee_offset,
+            self.right_hand_parent_chain[-1],
+        )
 
     def left_foot_transform(self, q: Array) -> Array:
         """Transformation matrix of the left foot (w.r.t world), shape (4, 4)"""
@@ -135,9 +136,9 @@ class Humanoid(Robot):
         return self._left_foot_transform(transforms)
 
     def _left_foot_transform(self, joint_transforms: Array) -> Array:
-        parent_index = self.left_foot_parent_chain[-1]
-        offset = jnp.asarray(self.left_foot_ee_offset)
-        return self._frame_transform(joint_transforms, offset, parent_index)
+        return self._frame_transform(
+            joint_transforms, self.left_foot_ee_offset, self.left_foot_parent_chain[-1]
+        )
 
     def right_foot_transform(self, q: Array) -> Array:
         """Transformation matrix of the right foot (w.r.t world), shape (4, 4)"""
@@ -145,9 +146,11 @@ class Humanoid(Robot):
         return self._right_foot_transform(transforms)
 
     def _right_foot_transform(self, joint_transforms: Array) -> Array:
-        parent_index = self.right_foot_parent_chain[-1]
-        offset = jnp.asarray(self.right_foot_ee_offset)
-        return self._frame_transform(joint_transforms, offset, parent_index)
+        return self._frame_transform(
+            joint_transforms,
+            self.right_foot_ee_offset,
+            self.right_foot_parent_chain[-1],
+        )
 
     # HANDS AND FEET JACOBIANS
 
@@ -157,9 +160,9 @@ class Humanoid(Robot):
         return self._left_hand_jacobian(transforms)
 
     def _left_hand_jacobian(self, joint_transforms: Array):
-        parent_chain = jnp.asarray(self.left_hand_parent_chain)
-        offset = jnp.asarray(self.left_hand_ee_offset)
-        return self._frame_jacobian(joint_transforms, offset, parent_chain)
+        return self._frame_jacobian(
+            joint_transforms, self.left_hand_ee_offset, self.left_hand_parent_chain
+        )
 
     def left_hand_jacobian_and_derivative(
         self, q: Array, qd: Array
@@ -171,10 +174,8 @@ class Humanoid(Robot):
     def _left_hand_jacobian_and_derivative(
         self, qd: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
-        parent_chain = jnp.asarray(self.left_hand_parent_chain)
-        offset = jnp.asarray(self.left_hand_ee_offset)
         return self._frame_jacobian_and_derivative(
-            qd, joint_transforms, offset, parent_chain
+            qd, joint_transforms, self.left_hand_ee_offset, self.left_hand_parent_chain
         )
 
     def right_hand_jacobian(self, q: Array) -> Array:
@@ -183,9 +184,9 @@ class Humanoid(Robot):
         return self._right_hand_jacobian(transforms)
 
     def _right_hand_jacobian(self, joint_transforms: Array):
-        parent_chain = jnp.asarray(self.right_hand_parent_chain)
-        offset = jnp.asarray(self.right_hand_ee_offset)
-        return self._frame_jacobian(joint_transforms, offset, parent_chain)
+        return self._frame_jacobian(
+            joint_transforms, self.right_hand_ee_offset, self.right_hand_parent_chain
+        )
 
     def right_hand_jacobian_and_derivative(
         self, q: Array, qd: Array
@@ -197,10 +198,11 @@ class Humanoid(Robot):
     def _right_hand_jacobian_and_derivative(
         self, qd: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
-        parent_chain = jnp.asarray(self.right_hand_parent_chain)
-        offset = jnp.asarray(self.right_hand_ee_offset)
         return self._frame_jacobian_and_derivative(
-            qd, joint_transforms, offset, parent_chain
+            qd,
+            joint_transforms,
+            self.right_hand_ee_offset,
+            self.right_hand_parent_chain,
         )
 
     def left_foot_jacobian(self, q: Array) -> Array:
@@ -209,9 +211,9 @@ class Humanoid(Robot):
         return self._left_foot_jacobian(transforms)
 
     def _left_foot_jacobian(self, joint_transforms: Array):
-        parent_chain = jnp.asarray(self.left_foot_parent_chain)
-        offset = jnp.asarray(self.left_foot_ee_offset)
-        return self._frame_jacobian(joint_transforms, offset, parent_chain)
+        return self._frame_jacobian(
+            joint_transforms, self.left_foot_ee_offset, self.left_foot_parent_chain
+        )
 
     def left_foot_jacobian_and_derivative(
         self, q: Array, qd: Array
@@ -223,10 +225,8 @@ class Humanoid(Robot):
     def _left_foot_jacobian_and_derivative(
         self, qd: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
-        parent_chain = jnp.asarray(self.left_foot_parent_chain)
-        offset = jnp.asarray(self.left_foot_ee_offset)
         return self._frame_jacobian_and_derivative(
-            qd, joint_transforms, offset, parent_chain
+            qd, joint_transforms, self.left_foot_ee_offset, self.left_foot_parent_chain
         )
 
     def right_foot_jacobian(self, q: Array) -> Array:
@@ -235,9 +235,9 @@ class Humanoid(Robot):
         return self._right_foot_jacobian(transforms)
 
     def _right_foot_jacobian(self, joint_transforms: Array):
-        parent_chain = jnp.asarray(self.right_foot_parent_chain)
-        offset = jnp.asarray(self.right_foot_ee_offset)
-        return self._frame_jacobian(joint_transforms, offset, parent_chain)
+        return self._frame_jacobian(
+            joint_transforms, self.right_foot_ee_offset, self.right_foot_parent_chain
+        )
 
     def right_foot_jacobian_and_derivative(
         self, q: Array, qd: Array
@@ -249,10 +249,11 @@ class Humanoid(Robot):
     def _right_foot_jacobian_and_derivative(
         self, qd: Array, joint_transforms: Array
     ) -> Tuple[Array, Array]:
-        parent_chain = jnp.asarray(self.right_foot_parent_chain)
-        offset = jnp.asarray(self.right_foot_ee_offset)
         return self._frame_jacobian_and_derivative(
-            qd, joint_transforms, offset, parent_chain
+            qd,
+            joint_transforms,
+            self.right_foot_ee_offset,
+            self.right_foot_parent_chain,
         )
 
     # MANIPULABILITY INDICES
@@ -265,7 +266,7 @@ class Humanoid(Robot):
 
     def _left_hand_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._left_hand_jacobian(joint_transforms)
-        chain_idxs = jnp.asarray(self.left_hand_parent_chain)
+        chain_idxs = self.left_hand_parent_chain
         if self.includes_floating_dof:
             chain_idxs = chain_idxs[6:]
         return self._manipulability_index_helper(J_full, chain_idxs)
@@ -276,7 +277,7 @@ class Humanoid(Robot):
 
     def _right_hand_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._right_hand_jacobian(joint_transforms)
-        chain_idxs = jnp.asarray(self.right_hand_parent_chain)
+        chain_idxs = self.right_hand_parent_chain
         if self.includes_floating_dof:
             chain_idxs = chain_idxs[6:]
         return self._manipulability_index_helper(J_full, chain_idxs)
@@ -287,7 +288,7 @@ class Humanoid(Robot):
 
     def _left_foot_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._left_foot_jacobian(joint_transforms)
-        chain_idxs = jnp.asarray(self.left_foot_parent_chain)
+        chain_idxs = self.left_foot_parent_chain
         if self.includes_floating_dof:
             chain_idxs = chain_idxs[6:]
         return self._manipulability_index_helper(J_full, chain_idxs)
@@ -298,7 +299,7 @@ class Humanoid(Robot):
 
     def _right_foot_manipulability_index(self, joint_transforms: Array) -> float:
         J_full = self._right_foot_jacobian(joint_transforms)
-        chain_idxs = jnp.asarray(self.right_foot_parent_chain)
+        chain_idxs = self.right_foot_parent_chain
         if self.includes_floating_dof:
             chain_idxs = chain_idxs[6:]
         return self._manipulability_index_helper(J_full, chain_idxs)
