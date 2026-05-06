@@ -8,7 +8,7 @@
 
 `frax` is a fast kinematics and dynamics library in pure Python, using [JAX](https://github.com/jax-ml/jax) for JIT-compilation and automatic differentiation. 
 
-With `frax`, you can design high-performance inverse-kinematics and inverse-dynamics controllers at the speed of [Pinocchio](https://github.com/stack-of-tasks/pinocchio), ease of use of Python, and differentiation and parallelization-compatibilty of [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx).
+With `frax`, you can design high-performance inverse-kinematics and inverse-dynamics controllers at the speed of [Pinocchio](https://github.com/stack-of-tasks/pinocchio), ease of use of Python, and differentiation and parallelization-compatibility of [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx).
 
 On CPU, you can expect compute times for typical controllers in the *low microseconds range (~25-100 kHz)*, and on GPU or TPU, `frax` can compute dynamics terms at upwards of *100 million computations per second*, depending on your batch size. 
 
