@@ -32,8 +32,8 @@ def check_env_vars():
 
         msg = (
             "[frax] CPU backend detected but some performance settings are not configured.\n"
-            + "These are optional, but should lead to better precision and speed.\n"
-            + "See the frax README or setup_cpu_env script for more details."
+            + "These are optional, but should lead to better precision and speed. "
+            + "See the frax README for more details."
         )
         if not before_jax_0_4_32:
             msg += (
