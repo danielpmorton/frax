@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/danielpmorton/frax/"
+Repository = "https://github.com/StanfordASL/frax/"
 
 [project.optional-dependencies]
 cuda12 = ["jax[cuda12]"]
